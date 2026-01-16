@@ -1,91 +1,135 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { GameProps } from '../types';
 
-interface Props { onComplete: () => void; }
-
-const SpinWheelGame: React.FC<Props> = ({ onComplete }) => {
+const SpinWheelGame: React.FC<GameProps> = ({ onComplete }) => {
   const [rotation, setRotation] = useState(0);
-  const [spinning, setSpinning] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [showResult, setShowResult] = useState(false);
+  const [winningSegment, setWinningSegment] = useState("");
 
-  const options = [
-    "Big Hug",
-    "Infinite Sorries",
-    "Pizza Night",
-    "Pure Forgiveness",
-    "New Memories",
-    "BFF Status"
+  const segments = [
+    { label: "Free Pizza", color: "#f472b6" },
+    { label: "Infinite Sorrys", color: "#fb7185" },
+    { label: "Movie Night", color: "#34d399" },
+    { label: "Big Hug", color: "#60a5fa" },
+    { label: "New Memory", color: "#fbbf24" },
+    { label: "Trust Reset", color: "#a78bfa" },
+    { label: "BFF Status", color: "#ec4899" },
+    { label: "Listen Pass", color: "#8b5cf6" }
   ];
 
   const spin = () => {
-    if (spinning) return;
-    setSpinning(true);
-    setResult(null);
-    const newRotation = rotation + 1440 + Math.random() * 360;
-    setRotation(newRotation);
+    if (isSpinning) return;
+
+    setIsSpinning(true);
+    setShowResult(false);
     
+    // Calculate a random rotation (at least 5 full spins + random offset)
+    const extraSpins = 5 + Math.floor(Math.random() * 5);
+    const randomOffset = Math.floor(Math.random() * 360);
+    const totalRotation = rotation + (extraSpins * 360) + randomOffset;
+    
+    setRotation(totalRotation);
+
+    // Play sound effect
+    const audio = new Audio('https://actions.google.com/sounds/v1/foley/wind_chime_vibrant.ogg');
+    audio.volume = 0.2;
+    audio.play().catch(() => {});
+
+    // Logic to determine winner based on rotation
     setTimeout(() => {
-      setSpinning(false);
-      setResult("You won the 'Infinite Love' Jackpot! 💖");
-    }, 4000);
+      setIsSpinning(false);
+      setShowResult(true);
+      const normalizedRotation = (360 - (totalRotation % 360)) % 360;
+      const index = Math.floor(normalizedRotation / (360 / segments.length));
+      setWinningSegment(segments[index].label);
+    }, 4000); // Matches the CSS transition duration
   };
 
   return (
-    <div className="flex flex-col items-center w-full">
+    <div className="flex flex-col items-center justify-center p-4 w-full max-w-md mx-auto">
       <div className="relative mb-12">
         {/* Pointer */}
-        <div className={`absolute -top-6 left-1/2 -translate-x-1/2 z-20 text-4xl drop-shadow-lg ${spinning ? 'animate-bounce' : ''}`}>
-          👇
+        <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-30 filter drop-shadow-lg">
+          <div className="text-5xl animate-bounce">👇</div>
         </div>
-        
-        {/* Wheel container with clay look */}
-        <div className="p-4 clay-inset rounded-full bg-white shadow-2xl">
+
+        {/* The Wheel Outer Ring */}
+        <div className="clay-card p-4 bg-white rounded-full shadow-[20px_20px_60px_#bebebe,-20px_-20px_60px_#ffffff]">
           <div 
-            className="w-64 h-64 border-8 border-pink-100 rounded-full relative transition-transform duration-[4000ms] cubic-bezier(0.15, 0, 0.15, 1) overflow-hidden shadow-inner flex items-center justify-center bg-white"
+            className="relative w-72 h-72 rounded-full overflow-hidden border-8 border-white shadow-inner transition-transform duration-[4000ms] cubic-bezier(0.15, 0, 0.15, 1)"
             style={{ transform: `rotate(${rotation}deg)` }}
           >
-            {options.map((opt, i) => (
-                <div 
-                    key={i} 
-                    className={`absolute text-[10px] font-black uppercase tracking-tight text-center w-full h-full flex items-start justify-center pt-8
-                      ${i % 2 === 0 ? 'text-rose-500' : 'text-purple-500'}
-                    `}
-                    style={{ transform: `rotate(${i * (360/options.length)}deg)` }}
+            {segments.map((seg, i) => (
+              <div 
+                key={i}
+                className="absolute top-0 left-1/2 w-1/2 h-full origin-left flex items-center justify-center"
+                style={{ 
+                  backgroundColor: seg.color,
+                  transform: `rotate(${i * (360 / segments.length)}deg)`,
+                  clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 50%)',
+                  transformOrigin: '0% 50%'
+                }}
+              >
+                <span 
+                  className="absolute left-8 font-black text-[10px] uppercase tracking-tighter text-white drop-shadow-md whitespace-nowrap"
+                  style={{ transform: `rotate(${(360 / segments.length) / 2}deg)` }}
                 >
-                    <div className="bg-slate-50 px-2 py-1 rounded-full shadow-sm border border-slate-100">
-                      {opt}
-                    </div>
-                </div>
+                  {seg.label}
+                </span>
+              </div>
             ))}
-            {/* Center Hub */}
-            <div className="w-12 h-12 bg-white rounded-full z-10 clay-card flex items-center justify-center shadow-lg border-2 border-pink-50">
-               <div className="w-4 h-4 bg-pink-400 rounded-full shadow-inner animate-pulse"></div>
-            </div>
           </div>
+
+          {/* Center Hub */}
+          <button 
+            onClick={spin}
+            disabled={isSpinning}
+            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-20 h-20 rounded-full z-20 flex items-center justify-center transition-all duration-300
+              ${isSpinning ? 'scale-90 bg-slate-100 cursor-not-allowed' : 'clay-button bg-rose-500 hover:scale-110 active:scale-95'}
+            `}
+          >
+            <span className="font-black text-white text-lg tracking-widest">
+              {isSpinning ? '...' : 'SPIN'}
+            </span>
+          </button>
         </div>
       </div>
-      
-      <div className="h-24 flex flex-col items-center justify-center">
-        {result ? (
-            <div className="text-center animate-soft">
-                <p className="text-xl font-black text-rose-600 mb-4">{result}</p>
-                <button 
-                    onClick={onComplete}
-                    className="clay-button bg-purple-500 text-white px-10 py-3 rounded-xl font-bold text-lg"
-                >
-                    Accept My Fate & Next
-                </button>
-            </div>
-        ) : (
+
+      <div className="h-32 flex flex-col items-center justify-center w-full text-center">
+        {showResult ? (
+          <div className="animate-pop-in">
+            <h3 className="text-2xl font-black text-rose-600 mb-2">JACKPOT! 🎉</h3>
+            <p className="text-slate-600 font-bold mb-6 italic">
+              "You won: <span className="text-rose-500 uppercase">{winningSegment}</span>!"
+            </p>
             <button 
-                onClick={spin}
-                disabled={spinning}
-                className="clay-button bg-rose-500 text-white px-14 py-4 rounded-full font-black text-xl disabled:opacity-50 disabled:scale-95"
+              onClick={onComplete}
+              className="clay-button bg-green-500 px-10 py-3 font-black text-xl animate-soft"
             >
-                {spinning ? 'WISHING...' : 'SPIN FOR LUCK 🍀'}
+              CLAIM PRIZE
             </button>
+          </div>
+        ) : (
+          <p className="text-slate-400 font-medium italic">
+            {isSpinning ? "The universe is deciding our fate..." : "Spin to win a piece of our future!"}
+          </p>
         )}
       </div>
+
+      <style>{`
+        @keyframes pop-in {
+          0% { transform: scale(0.5); opacity: 0; }
+          70% { transform: scale(1.1); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop-in { animation: pop-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        .cubic-bezier {
+            transition-timing-function: cubic-bezier(0.15, 0, 0.15, 1);
+        }
+      `}</style>
     </div>
   );
 };
